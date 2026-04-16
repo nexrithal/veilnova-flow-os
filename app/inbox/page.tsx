@@ -18,7 +18,7 @@ export default function InboxPage() {
 
   return (
     <AppShell>
-      <div className="px-6 py-6 max-w-2xl mx-auto">
+      <div className="px-4 md:px-6 py-6 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-semibold text-foreground tracking-tight">{t.inbox.title}</h1>

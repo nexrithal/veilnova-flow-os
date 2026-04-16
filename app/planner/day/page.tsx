@@ -99,211 +99,211 @@ export default function DayViewPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen w-full min-w-0 overflow-hidden">
         {/* Unified header with view switcher */}
         <PlannerHeader
-        title={dateTitle}
-        subtitle={dateSubtitle}
-        isCurrentPeriod={isToday}
-        onPrev={goToPrev}
-        onNext={goToNext}
-        onToday={goToToday}
-        todayLabel={t.planner?.today || 'Today'}
-      >
-        <CapacitySummary
-          available={availableHours}
-          planned={plannedHours}
-          actual={actualHours}
-          compact
-        />
-      </PlannerHeader>
-
-      {/* Main content */}
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-        {/* Timeline area */}
-        <div className="flex-1 overflow-auto p-4">
-          <TimeTimeline
-            shift={currentShift}
-            scheduledBlocks={scheduledBlocks}
-            workLogs={workLogs}
-            onTimeClick={handleTimeClick}
-            onBlockClick={(block) => {
-              setSelectedTask(block.task)
-              setScheduleTime({ hour: block.startHour, minute: block.startMinute })
-              setScheduleModalOpen(true)
-            }}
+          title={dateTitle}
+          subtitle={dateSubtitle}
+          isCurrentPeriod={isToday}
+          onPrev={goToPrev}
+          onNext={goToNext}
+          onToday={goToToday}
+          todayLabel={t.planner?.today || 'Today'}
+        >
+          <CapacitySummary
+            available={availableHours}
+            planned={plannedHours}
+            actual={actualHours}
+            compact
           />
-        </div>
+        </PlannerHeader>
 
-        {/* Sidebar panel */}
-        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-auto">
-          <div className="p-4 space-y-6">
-            {/* Shift selection */}
-            <div className="space-y-2">
-              <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                {t.planner?.shift || 'Shift'}
-              </h3>
-              <ShiftSelector
-                shifts={shiftTemplates}
-                selectedShiftId={dayShiftAssignments[selectedDate] || currentShift.id}
-                onSelect={(shiftId) => assignShiftToDay(selectedDate, shiftId)}
-              />
-            </div>
+        {/* Main content */}
+        <div className="flex flex-col lg:flex-row flex-1 min-h-0 min-w-0 overflow-hidden">
+          {/* Timeline area */}
+          <div className="flex-1 min-w-0 overflow-auto p-4">
+            <TimeTimeline
+              shift={currentShift}
+              scheduledBlocks={scheduledBlocks}
+              workLogs={workLogs}
+              onTimeClick={handleTimeClick}
+              onBlockClick={(block) => {
+                setSelectedTask(block.task)
+                setScheduleTime({ hour: block.startHour, minute: block.startMinute })
+                setScheduleModalOpen(true)
+              }}
+            />
+          </div>
 
-            {/* Capacity summary - detailed */}
-            <div className="space-y-2">
-              <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                {t.planner?.capacity || 'Capacity'}
-              </h3>
-              <CapacitySummary
-                available={availableHours}
-                planned={plannedHours}
-                actual={actualHours}
-              />
-              {workHours > 0 && (
-                <p className="text-[9px] text-muted-foreground">
-                  +{workHours.toFixed(0)}h {t.planner?.workHours || 'work'}
-                </p>
-              )}
-            </div>
-
-            {/* Overdue warnings */}
-            {overdueTasks.length > 0 && (
+          {/* Sidebar panel */}
+          <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-auto">
+            <div className="p-4 space-y-6">
+              {/* Shift selection */}
               <div className="space-y-2">
-                <h3 className="text-[10px] font-medium text-destructive uppercase tracking-wider">
-                  {t.planner?.overdue || 'Overdue'} ({overdueTasks.length})
+                <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  {t.planner?.shift || 'Shift'}
                 </h3>
-                <div className="space-y-1">
-                  {overdueTasks.slice(0, 3).map((task) => (
-                    <div
-                      key={task.id}
-                      className="p-2 rounded bg-destructive/10 border border-destructive/30"
-                    >
-                      <p className="text-[11px] font-medium text-destructive truncate">
-                        {task.title}
-                      </p>
-                      <p className="text-[9px] text-muted-foreground">
-                        {t.planner?.deadline || 'Deadline'}: {task.deadline}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                <ShiftSelector
+                  shifts={shiftTemplates}
+                  selectedShiftId={dayShiftAssignments[selectedDate] || currentShift.id}
+                  onSelect={(shiftId) => assignShiftToDay(selectedDate, shiftId)}
+                />
               </div>
-            )}
 
-            {/* Scheduled tasks for today */}
-            <div className="space-y-2">
-              <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                {t.planner?.scheduled || 'Scheduled'} ({scheduledBlocks.length})
-              </h3>
-              {scheduledBlocks.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {t.planner?.noScheduled || 'No tasks scheduled. Click on timeline to add.'}
-                </p>
-              ) : (
-                <div className="space-y-1.5">
-                  {scheduledBlocks.map((block) => (
-                    <div
-                      key={block.id}
-                      className="p-2 rounded bg-neon/10 border border-neon/20 cursor-pointer hover:bg-neon/15 transition-colors"
-                      onClick={() => {
-                        setSelectedTask(block.task)
-                        setScheduleTime({ hour: block.startHour, minute: block.startMinute })
-                        setScheduleModalOpen(true)
+              {/* Capacity summary - detailed */}
+              <div className="space-y-2">
+                <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  {t.planner?.capacity || 'Capacity'}
+                </h3>
+                <CapacitySummary
+                  available={availableHours}
+                  planned={plannedHours}
+                  actual={actualHours}
+                />
+                {workHours > 0 && (
+                  <p className="text-[9px] text-muted-foreground">
+                    +{workHours.toFixed(0)}h {t.planner?.workHours || 'work'}
+                  </p>
+                )}
+              </div>
+
+              {/* Overdue warnings */}
+              {overdueTasks.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-[10px] font-medium text-destructive uppercase tracking-wider">
+                    {t.planner?.overdue || 'Overdue'} ({overdueTasks.length})
+                  </h3>
+                  <div className="space-y-1">
+                    {overdueTasks.slice(0, 3).map((task) => (
+                      <div
+                        key={task.id}
+                        className="p-2 rounded bg-destructive/10 border border-destructive/30"
+                      >
+                        <p className="text-[11px] font-medium text-destructive truncate">
+                          {task.title}
+                        </p>
+                        <p className="text-[9px] text-muted-foreground">
+                          {t.planner?.deadline || 'Deadline'}: {task.deadline}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Scheduled tasks for today */}
+              <div className="space-y-2">
+                <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  {t.planner?.scheduled || 'Scheduled'} ({scheduledBlocks.length})
+                </h3>
+                {scheduledBlocks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t.planner?.noScheduled || 'No tasks scheduled. Click on timeline to add.'}
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {scheduledBlocks.map((block) => (
+                      <div
+                        key={block.id}
+                        className="p-2 rounded bg-neon/10 border border-neon/20 cursor-pointer hover:bg-neon/15 transition-colors"
+                        onClick={() => {
+                          setSelectedTask(block.task)
+                          setScheduleTime({ hour: block.startHour, minute: block.startMinute })
+                          setScheduleModalOpen(true)
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-medium truncate">{block.task.title}</p>
+                            <p className="text-[9px] text-muted-foreground">
+                              {block.startHour.toString().padStart(2, '0')}:{block.startMinute.toString().padStart(2, '0')} - {formatHours(block.durationMinutes / 60)}
+                            </p>
+                          </div>
+                          <QuickLogButton task={block.task} date={selectedDate} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Quick log for any active task */}
+              <div className="space-y-2">
+                <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  {t.planner?.quickLog || 'Quick Log'}
+                </h3>
+                {activeTasks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t.planner?.noActiveTasks || 'No active tasks'}
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <select
+                      className="w-full px-2 py-1.5 rounded text-xs bg-input border border-border focus:ring-1 focus:ring-neon"
+                      value={selectedTask?.id || ''}
+                      onChange={(e) => {
+                        const task = items.find((i) => i.id === e.target.value)
+                        setSelectedTask(task || null)
                       }}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-medium truncate">{block.task.title}</p>
-                          <p className="text-[9px] text-muted-foreground">
-                            {block.startHour.toString().padStart(2, '0')}:{block.startMinute.toString().padStart(2, '0')} - {formatHours(block.durationMinutes / 60)}
-                          </p>
-                        </div>
-                        <QuickLogButton task={block.task} date={selectedDate} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                      <option value="">{t.planner?.selectTask || 'Select task...'}</option>
+                      {activeTasks.map((task) => (
+                        <option key={task.id} value={task.id}>
+                          {task.title}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedTask && (
+                      <WorkLogEntry
+                        task={selectedTask}
+                        date={selectedDate}
+                        onComplete={() => {}}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+        </div>
 
-            {/* Quick log for any active task */}
-            <div className="space-y-2">
-              <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                {t.planner?.quickLog || 'Quick Log'}
+        {/* Task picker modal */}
+        {showTaskPicker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowTaskPicker(false)} />
+            <div className="relative bg-card border border-border rounded-lg shadow-xl w-full max-w-sm mx-4 p-4">
+              <h3 className="text-sm font-bold mb-3">
+                {t.planner?.selectTaskToSchedule || 'Select task to schedule'}
               </h3>
-              {activeTasks.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {t.planner?.noActiveTasks || 'No active tasks'}
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <select
-                    className="w-full px-2 py-1.5 rounded text-xs bg-input border border-border focus:ring-1 focus:ring-neon"
-                    value={selectedTask?.id || ''}
-                    onChange={(e) => {
-                      const task = items.find((i) => i.id === e.target.value)
-                      setSelectedTask(task || null)
-                    }}
+              <p className="text-xs text-muted-foreground mb-3">
+                {scheduleTime.hour.toString().padStart(2, '0')}:{scheduleTime.minute.toString().padStart(2, '0')}
+              </p>
+              <div className="max-h-64 overflow-auto space-y-1">
+                {activeTasks.map((task) => (
+                  <button
+                    key={task.id}
+                    onClick={() => handleTaskSelect(task)}
+                    className="w-full text-left p-2 rounded hover:bg-secondary transition-colors"
                   >
-                    <option value="">{t.planner?.selectTask || 'Select task...'}</option>
-                    {activeTasks.map((task) => (
-                      <option key={task.id} value={task.id}>
-                        {task.title}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedTask && (
-                    <WorkLogEntry
-                      task={selectedTask}
-                      date={selectedDate}
-                      onComplete={() => {}}
-                    />
-                  )}
-                </div>
-              )}
+                    <p className="text-xs font-medium truncate">{task.title}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {task.estimatedHours ? `${task.estimatedHours}h est.` : task.status}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowTaskPicker(false)}
+                className="mt-3 w-full px-3 py-2 rounded text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t.common.cancel}
+              </button>
             </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Task picker modal */}
-      {showTaskPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowTaskPicker(false)} />
-          <div className="relative bg-card border border-border rounded-lg shadow-xl w-full max-w-sm mx-4 p-4">
-            <h3 className="text-sm font-bold mb-3">
-              {t.planner?.selectTaskToSchedule || 'Select task to schedule'}
-            </h3>
-            <p className="text-xs text-muted-foreground mb-3">
-              {scheduleTime.hour.toString().padStart(2, '0')}:{scheduleTime.minute.toString().padStart(2, '0')}
-            </p>
-            <div className="max-h-64 overflow-auto space-y-1">
-              {activeTasks.map((task) => (
-                <button
-                  key={task.id}
-                  onClick={() => handleTaskSelect(task)}
-                  className="w-full text-left p-2 rounded hover:bg-secondary transition-colors"
-                >
-                  <p className="text-xs font-medium truncate">{task.title}</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {task.estimatedHours ? `${task.estimatedHours}h est.` : task.status}
-                  </p>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowTaskPicker(false)}
-              className="mt-3 w-full px-3 py-2 rounded text-xs font-medium bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t.common.cancel}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Schedule modal */}
-      <ScheduleModal
+        {/* Schedule modal */}
+        <ScheduleModal
           isOpen={scheduleModalOpen}
           onClose={() => {
             setScheduleModalOpen(false)
@@ -315,7 +315,7 @@ export default function DayViewPage() {
           initialMinute={scheduleTime.minute}
           existingBlocks={scheduledBlocks}
         />
-        </div>
+      </div>
     </AppShell>
   )
 }

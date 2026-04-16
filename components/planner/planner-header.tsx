@@ -44,8 +44,8 @@ export function PlannerHeader({
   }
 
   return (
-    <div className="border-b border-border px-4 py-3 bg-card/50">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+    <div className="border-b border-border px-4 py-3 bg-card/50 shrink-0 w-full min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
         {/* Left section: Navigation + Date */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {/* Nav arrows */}
@@ -58,9 +58,9 @@ export function PlannerHeader({
           </button>
 
           {/* Date display */}
-          <div className="text-center min-w-[120px] sm:min-w-[160px]">
+          <div className="text-center min-w-0 flex-1 sm:flex-initial sm:min-w-[160px]">
             {subtitle && (
-              <div className="text-[10px] text-muted-foreground">{subtitle}</div>
+              <div className="text-[10px] text-muted-foreground truncate">{subtitle}</div>
             )}
             <div className={cn('text-sm font-bold truncate', isCurrentPeriod && 'text-neon')}>
               {title}
@@ -79,7 +79,7 @@ export function PlannerHeader({
           {!isCurrentPeriod && (
             <button
               onClick={onToday}
-              className="px-2 py-1 rounded text-[10px] font-medium bg-neon/10 text-neon hover:bg-neon/20 transition-colors shrink-0"
+              className="px-2 py-1 rounded text-[10px] font-medium bg-neon/10 text-neon hover:bg-neon/20 transition-colors shrink-0 hidden sm:block"
             >
               {todayLabel}
             </button>
@@ -87,7 +87,17 @@ export function PlannerHeader({
         </div>
 
         {/* Right section: View switcher + Capacity */}
-        <div className="flex items-center gap-3 justify-between sm:justify-end">
+        <div className="flex items-center gap-2 sm:gap-3 justify-between sm:justify-end min-w-0 overflow-x-auto">
+          {/* Today button - mobile only */}
+          {!isCurrentPeriod && (
+            <button
+              onClick={onToday}
+              className="px-2 py-1 rounded text-[10px] font-medium bg-neon/10 text-neon hover:bg-neon/20 transition-colors shrink-0 sm:hidden"
+            >
+              {todayLabel}
+            </button>
+          )}
+
           {/* View switcher */}
           <div className="flex rounded-md border border-border overflow-hidden shrink-0">
             {views.map(({ view, href, label }) => {
@@ -110,7 +120,9 @@ export function PlannerHeader({
           </div>
 
           {/* Capacity summary slot */}
-          {children}
+          <div className="shrink-0">
+            {children}
+          </div>
         </div>
       </div>
     </div>
