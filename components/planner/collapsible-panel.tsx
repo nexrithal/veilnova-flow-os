@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/hooks/use-i18n'
 
 interface CollapsiblePanelProps {
   title: string
@@ -87,6 +88,7 @@ interface MobileDetailsPanelProps {
 
 export function MobileDetailsPanel({ children, className }: MobileDetailsPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const t = useI18n()
 
   return (
     <div
@@ -103,7 +105,7 @@ export function MobileDetailsPanel({ children, className }: MobileDetailsPanelPr
       >
         <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mb-1" />
         <span className="text-[10px] text-muted-foreground">
-          {isExpanded ? 'Hide Details' : 'Show Details'}
+          {isExpanded ? t.planner.hideDetails : t.planner.showDetails}
         </span>
       </button>
 

@@ -266,6 +266,8 @@ export const translations = {
         sa: 'Sa',
         su: 'Su',
       },
+      showDetails: 'Show Details',
+      hideDetails: 'Hide Details',
     },
   },
 
@@ -479,7 +481,7 @@ export const translations = {
       duration: 'Длительность',
       workMode: 'Режим работы',
       preview: 'Предпросмотр',
-      schedule: 'Запланировать',
+      schedule: 'Запланир��вать',
       log: 'Записать',
       logged: 'Записано',
       custom: 'Своё',
@@ -517,6 +519,8 @@ export const translations = {
         sa: 'Сб',
         su: 'Вс',
       },
+      showDetails: 'Показать детали',
+      hideDetails: 'Скрыть детали',
     },
   },
 } as const
