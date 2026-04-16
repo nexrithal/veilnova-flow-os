@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { 
   ShiftTemplate, TimeBlock, ScheduledBlock, WorkLog, TaskItem 
@@ -159,8 +160,22 @@ export function TimeTimeline({
 }
 
 function CurrentTimeIndicator() {
-  const now = new Date()
-  const top = (now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT
+  const [top, setTop] = useState<number | null>(null)
+
+  useEffect(() => {
+    const updatePosition = () => {
+      const now = new Date()
+      setTop((now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT)
+    }
+    
+    updatePosition()
+    // Update every minute
+    const interval = setInterval(updatePosition, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Don't render on server or before hydration
+  if (top === null) return null
 
   return (
     <div

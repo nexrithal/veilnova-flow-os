@@ -12,6 +12,7 @@ import { CapacitySummary } from '@/components/planner/capacity-summary'
 import { WorkLogEntry, QuickLogButton } from '@/components/planner/work-log-entry'
 import { ScheduleModal } from '@/components/planner/schedule-modal'
 import { PlannerHeader } from '@/components/planner/planner-header'
+import { CollapsiblePanel, MobileDetailsPanel } from '@/components/planner/collapsible-panel'
 import {
   parseDate,
   formatDateLocal,
@@ -120,8 +121,8 @@ export default function DayViewPage() {
 
         {/* Main content */}
         <div className="flex flex-col lg:flex-row flex-1 min-h-0 min-w-0 overflow-hidden">
-          {/* Timeline area */}
-          <div className="flex-1 min-w-0 overflow-auto p-4">
+          {/* Timeline area - takes full height on mobile */}
+          <div className="flex-1 min-w-0 min-h-0 overflow-auto p-4">
             <TimeTimeline
               shift={currentShift}
               scheduledBlocks={scheduledBlocks}
@@ -135,8 +136,135 @@ export default function DayViewPage() {
             />
           </div>
 
-          {/* Sidebar panel */}
-          <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-auto">
+          {/* Mobile details panel - collapsible on mobile */}
+          <MobileDetailsPanel>
+            <CollapsiblePanel
+              title={t.planner?.shift || 'Shift'}
+              defaultOpen={false}
+            >
+              <ShiftSelector
+                shifts={shiftTemplates}
+                selectedShiftId={dayShiftAssignments[selectedDate] || currentShift.id}
+                onSelect={(shiftId) => assignShiftToDay(selectedDate, shiftId)}
+              />
+            </CollapsiblePanel>
+
+            <CollapsiblePanel
+              title={t.planner?.capacity || 'Capacity'}
+              defaultOpen={false}
+            >
+              <CapacitySummary
+                available={availableHours}
+                planned={plannedHours}
+                actual={actualHours}
+              />
+              {workHours > 0 && (
+                <p className="text-[9px] text-muted-foreground mt-2">
+                  +{workHours.toFixed(0)}h {t.planner?.workHours || 'work'}
+                </p>
+              )}
+            </CollapsiblePanel>
+
+            {overdueTasks.length > 0 && (
+              <CollapsiblePanel
+                title={t.planner?.overdue || 'Overdue'}
+                badge={overdueTasks.length}
+                badgeVariant="destructive"
+                defaultOpen={true}
+              >
+                <div className="space-y-1">
+                  {overdueTasks.slice(0, 3).map((task) => (
+                    <div
+                      key={task.id}
+                      className="p-2 rounded bg-destructive/10 border border-destructive/30"
+                    >
+                      <p className="text-[11px] font-medium text-destructive truncate">
+                        {task.title}
+                      </p>
+                      <p className="text-[9px] text-muted-foreground">
+                        {t.planner?.deadline || 'Deadline'}: {task.deadline}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CollapsiblePanel>
+            )}
+
+            <CollapsiblePanel
+              title={t.planner?.scheduled || 'Scheduled'}
+              badge={scheduledBlocks.length}
+              defaultOpen={scheduledBlocks.length > 0}
+            >
+              {scheduledBlocks.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {t.planner?.noScheduled || 'No tasks scheduled. Click on timeline to add.'}
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {scheduledBlocks.map((block) => (
+                    <div
+                      key={block.id}
+                      className="p-2 rounded bg-neon/10 border border-neon/20 cursor-pointer hover:bg-neon/15 transition-colors"
+                      onClick={() => {
+                        setSelectedTask(block.task)
+                        setScheduleTime({ hour: block.startHour, minute: block.startMinute })
+                        setScheduleModalOpen(true)
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-medium truncate">{block.task.title}</p>
+                          <p className="text-[9px] text-muted-foreground">
+                            {block.startHour.toString().padStart(2, '0')}:{block.startMinute.toString().padStart(2, '0')} - {formatHours(block.durationMinutes / 60)}
+                          </p>
+                        </div>
+                        <QuickLogButton task={block.task} date={selectedDate} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CollapsiblePanel>
+
+            <CollapsiblePanel
+              title={t.planner?.quickLog || 'Quick Log'}
+              defaultOpen={false}
+            >
+              {activeTasks.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {t.planner?.noActiveTasks || 'No active tasks'}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <select
+                    className="w-full px-2 py-1.5 rounded text-xs bg-input border border-border focus:ring-1 focus:ring-neon"
+                    value={selectedTask?.id || ''}
+                    onChange={(e) => {
+                      const task = items.find((i) => i.id === e.target.value)
+                      setSelectedTask(task || null)
+                    }}
+                  >
+                    <option value="">{t.planner?.selectTask || 'Select task...'}</option>
+                    {activeTasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTask && (
+                    <WorkLogEntry
+                      task={selectedTask}
+                      date={selectedDate}
+                      onComplete={() => {}}
+                    />
+                  )}
+                </div>
+              )}
+            </CollapsiblePanel>
+          </MobileDetailsPanel>
+
+          {/* Desktop sidebar panel - always visible on large screens */}
+          <div className="hidden lg:block w-80 shrink-0 border-l border-border bg-card/50 overflow-auto">
             <div className="p-4 space-y-6">
               {/* Shift selection */}
               <div className="space-y-2">

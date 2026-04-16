@@ -117,7 +117,7 @@ export default function MonthViewPage() {
 
         {/* Month content */}
         <div className="flex-1 min-h-0 min-w-0 overflow-auto p-4">
-          <div className="max-w-2xl mx-auto">
+          <div className="w-full md:max-w-2xl md:mx-auto">
             <CalendarGrid
               year={year}
               month={month}
