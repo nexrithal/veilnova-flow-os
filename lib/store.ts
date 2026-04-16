@@ -41,14 +41,16 @@ const DEFAULT_SHIFT_TEMPLATES: ShiftTemplate[] = [
     id: 'night_shift',
     name: 'Night Shift',
     type: 'night_shift',
-    totalWorkHours: 10, // 18:00-04:00 work (displayed as 18-24 + next day continuation)
+    totalWorkHours: 13, // Split-day model: 18:00-24:00 (6h) + next day 00:00-07:00 (7h)
     blocks: [
-      // Night shift: sleep during day, work in evening/night
-      { id: 'ns-work-cont', type: 'work', startHour: 0, startMinute: 0, endHour: 4, endMinute: 0, label: 'Night work (cont)', availabilityLevel: 'high' },
-      { id: 'ns-dead1', type: 'dead', startHour: 4, startMinute: 0, endHour: 5, endMinute: 0, label: 'Wind down', availabilityLevel: 'blocked' },
-      { id: 'ns-sleep', type: 'sleep', startHour: 5, startMinute: 0, endHour: 14, endMinute: 0, label: 'Sleep', availabilityLevel: 'blocked' },
-      { id: 'ns-free', type: 'free', startHour: 14, startMinute: 0, endHour: 16, endMinute: 0, label: 'Afternoon free', availabilityLevel: 'medium' },
-      { id: 'ns-dead2', type: 'dead', startHour: 16, startMinute: 0, endHour: 18, endMinute: 0, label: 'Prep/commute', availabilityLevel: 'blocked' },
+      // Night shift split-day model:
+      // Current day shows: work continuation from prev night, recovery, free time, evening work start
+      // Next day shows: work continuation, dead window, recovery sleep, free time, work start
+      { id: 'ns-work-cont', type: 'work', startHour: 0, startMinute: 0, endHour: 7, endMinute: 0, label: 'Night work (cont)', availabilityLevel: 'high' },
+      { id: 'ns-dead1', type: 'dead', startHour: 7, startMinute: 0, endHour: 8, endMinute: 0, label: 'Wind down', availabilityLevel: 'blocked' },
+      { id: 'ns-sleep', type: 'sleep', startHour: 8, startMinute: 0, endHour: 16, endMinute: 0, label: 'Recovery sleep', availabilityLevel: 'blocked' },
+      { id: 'ns-free', type: 'free', startHour: 16, startMinute: 0, endHour: 17, endMinute: 30, label: 'Afternoon free', availabilityLevel: 'medium' },
+      { id: 'ns-dead2', type: 'dead', startHour: 17, startMinute: 30, endHour: 18, endMinute: 0, label: 'Prep/commute', availabilityLevel: 'blocked' },
       { id: 'ns-work', type: 'work', startHour: 18, startMinute: 0, endHour: 24, endMinute: 0, label: 'Night work', availabilityLevel: 'high' },
     ],
   },
@@ -416,7 +418,10 @@ export const useStore = create<StoreState>()(
           if (shift) return shift
         }
         // Default: weekdays = day_shift, weekends = off_day
-        const dayOfWeek = new Date(date).getDay()
+        // Use local-safe date parsing: split YYYY-MM-DD and create Date with local time
+        const [year, month, day] = date.split('-').map(Number)
+        const localDate = new Date(year, month - 1, day)
+        const dayOfWeek = localDate.getDay()
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
         const defaultShiftId = isWeekend ? 'off_day' : 'day_shift'
         return state.shiftTemplates.find((t) => t.id === defaultShiftId) || state.shiftTemplates[0]
