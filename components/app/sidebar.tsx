@@ -18,6 +18,7 @@ export function Sidebar() {
 
   const NAV_ITEMS = [
     { href: '/', label: t.nav.dashboard, icon: '▦' },
+    { href: '/planner/day', label: t.nav.planner || 'Planner', icon: '▤' },
     { href: '/inbox', label: t.nav.inbox, icon: '◎' },
     { href: '/backlog', label: t.nav.backlog, icon: '≡' },
     { href: '/board', label: t.nav.board, icon: '⊞' },
@@ -53,7 +54,7 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const count = counts[item.href as keyof typeof counts]
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || (item.href.startsWith('/planner') && pathname.startsWith('/planner'))
           const isBoardOverWip = item.href === '/board' && isOverWip
 
           return (

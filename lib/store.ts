@@ -2,8 +2,70 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { TaskItem, ItemStatus, ItemType, Horizon, LogEntry, calcScore } from './types'
+import { 
+  TaskItem, ItemStatus, ItemType, Horizon, LogEntry, calcScore,
+  ShiftTemplate, ShiftType, DayOverride, ScheduledBlock, WorkLog,
+  TimeBlock, CalendarView, WorkMode
+} from './types'
 import { Locale } from './i18n'
+
+// Helper to format date as YYYY-MM-DD using LOCAL time (not UTC)
+function formatDateLocal(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Default shift templates with realistic patterns
+// Key principle: 'work' blocks = external job (NOT personal task capacity)
+//               'free' blocks = personal task capacity
+//               'dead' blocks = prep, commute, transitions (not usable)
+//               'sleep' blocks = blocked
+const DEFAULT_SHIFT_TEMPLATES: ShiftTemplate[] = [
+  {
+    id: 'day_shift',
+    name: 'Day Shift',
+    type: 'day_shift',
+    totalWorkHours: 11, // 07:00-18:00 main work
+    blocks: [
+      { id: 'ds-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 5, endMinute: 0, availabilityLevel: 'blocked' },
+      { id: 'ds-dead1', type: 'dead', startHour: 5, startMinute: 0, endHour: 7, endMinute: 0, label: 'Morning prep', availabilityLevel: 'blocked' },
+      { id: 'ds-work', type: 'work', startHour: 7, startMinute: 0, endHour: 18, endMinute: 0, label: 'Work shift', availabilityLevel: 'high' },
+      { id: 'ds-dead2', type: 'dead', startHour: 18, startMinute: 0, endHour: 19, endMinute: 0, label: 'Commute/transition', availabilityLevel: 'blocked' },
+      { id: 'ds-evening', type: 'free', startHour: 19, startMinute: 0, endHour: 23, endMinute: 0, label: 'Evening free', availabilityLevel: 'medium' },
+      { id: 'ds-sleep2', type: 'sleep', startHour: 23, startMinute: 0, endHour: 24, endMinute: 0, availabilityLevel: 'blocked' },
+    ],
+  },
+  {
+    id: 'night_shift',
+    name: 'Night Shift',
+    type: 'night_shift',
+    totalWorkHours: 10, // 18:00-04:00 work (displayed as 18-24 + next day continuation)
+    blocks: [
+      // Night shift: sleep during day, work in evening/night
+      { id: 'ns-work-cont', type: 'work', startHour: 0, startMinute: 0, endHour: 4, endMinute: 0, label: 'Night work (cont)', availabilityLevel: 'high' },
+      { id: 'ns-dead1', type: 'dead', startHour: 4, startMinute: 0, endHour: 5, endMinute: 0, label: 'Wind down', availabilityLevel: 'blocked' },
+      { id: 'ns-sleep', type: 'sleep', startHour: 5, startMinute: 0, endHour: 14, endMinute: 0, label: 'Sleep', availabilityLevel: 'blocked' },
+      { id: 'ns-free', type: 'free', startHour: 14, startMinute: 0, endHour: 16, endMinute: 0, label: 'Afternoon free', availabilityLevel: 'medium' },
+      { id: 'ns-dead2', type: 'dead', startHour: 16, startMinute: 0, endHour: 18, endMinute: 0, label: 'Prep/commute', availabilityLevel: 'blocked' },
+      { id: 'ns-work', type: 'work', startHour: 18, startMinute: 0, endHour: 24, endMinute: 0, label: 'Night work', availabilityLevel: 'high' },
+    ],
+  },
+  {
+    id: 'off_day',
+    name: 'Off Day',
+    type: 'off_day',
+    totalWorkHours: 0, // No external work
+    blocks: [
+      { id: 'od-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 8, endMinute: 0, availabilityLevel: 'blocked' },
+      { id: 'od-morning', type: 'free', startHour: 8, startMinute: 0, endHour: 9, endMinute: 0, label: 'Soft wake', availabilityLevel: 'low' },
+      { id: 'od-free', type: 'free', startHour: 9, startMinute: 0, endHour: 20, endMinute: 0, label: 'Free day', availabilityLevel: 'high' },
+      { id: 'od-evening', type: 'free', startHour: 20, startMinute: 0, endHour: 23, endMinute: 0, label: 'Evening wind-down', availabilityLevel: 'low' },
+      { id: 'od-sleep2', type: 'sleep', startHour: 23, startMinute: 0, endHour: 24, endMinute: 0, availabilityLevel: 'blocked' },
+    ],
+  },
+]
 
 const SEED_ITEMS: TaskItem[] = [
   {
@@ -172,6 +234,25 @@ interface StoreState {
   setLocale: (locale: Locale) => void
   theme: 'dark' | 'light'
   setTheme: (theme: 'dark' | 'light') => void
+  
+  // Planner state
+  selectedDate: string // ISO date (YYYY-MM-DD)
+  calendarView: CalendarView
+  shiftTemplates: ShiftTemplate[]
+  dayShiftAssignments: Record<string, string> // date -> shiftTemplateId
+  dayOverrides: DayOverride[]
+  
+  // Planner methods
+  setSelectedDate: (date: string) => void
+  setCalendarView: (view: CalendarView) => void
+  updateShiftTemplate: (template: ShiftTemplate) => void
+  assignShiftToDay: (date: string, shiftTemplateId: string) => void
+  addDayOverride: (override: Omit<DayOverride, 'id'>) => void
+  removeDayOverride: (id: string) => void
+  scheduleTask: (taskId: string, block: Omit<ScheduledBlock, 'id' | 'taskId'>) => void
+  removeScheduledBlock: (taskId: string, blockId: string) => void
+  logWork: (taskId: string, log: Omit<WorkLog, 'id' | 'taskId'>) => void
+  getShiftForDate: (date: string) => ShiftTemplate
 }
 
 export const useStore = create<StoreState>()(
@@ -183,6 +264,163 @@ export const useStore = create<StoreState>()(
       setLocale: (locale) => set({ locale }),
       theme: 'dark' as 'dark' | 'light',
       setTheme: (theme) => set({ theme }),
+      
+      // Planner initial state
+      selectedDate: formatDateLocal(new Date()),
+      calendarView: 'day' as CalendarView,
+      shiftTemplates: DEFAULT_SHIFT_TEMPLATES,
+      dayShiftAssignments: {},
+      dayOverrides: [],
+      
+      // Planner methods
+      setSelectedDate: (date) => set({ selectedDate: date }),
+      setCalendarView: (view) => set({ calendarView: view }),
+      
+      updateShiftTemplate: (template) =>
+        set((state) => ({
+          shiftTemplates: state.shiftTemplates.map((t) =>
+            t.id === template.id ? template : t
+          ),
+        })),
+      
+      assignShiftToDay: (date, shiftTemplateId) =>
+        set((state) => ({
+          dayShiftAssignments: { ...state.dayShiftAssignments, [date]: shiftTemplateId },
+        })),
+      
+      addDayOverride: (override) =>
+        set((state) => ({
+          dayOverrides: [
+            ...state.dayOverrides,
+            { ...override, id: crypto.randomUUID() },
+          ],
+        })),
+      
+      removeDayOverride: (id) =>
+        set((state) => ({
+          dayOverrides: state.dayOverrides.filter((o) => o.id !== id),
+        })),
+      
+      scheduleTask: (taskId, block) =>
+        set((state) => ({
+          items: state.items.map((item) => {
+            if (item.id !== taskId) return item
+            const newBlock: ScheduledBlock = {
+              ...block,
+              id: crypto.randomUUID(),
+              taskId,
+            }
+            const scheduledBlocks = [...(item.scheduledBlocks || []), newBlock]
+            const totalPlanned = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes / 60, 0)
+            return {
+              ...item,
+              scheduledBlocks,
+              remainingHours: (item.estimatedHours || 0) - totalPlanned - (item.actualHours || 0),
+              updatedAt: new Date().toISOString(),
+            }
+          }),
+        })),
+      
+      removeScheduledBlock: (taskId, blockId) =>
+        set((state) => ({
+          items: state.items.map((item) => {
+            if (item.id !== taskId) return item
+            const scheduledBlocks = (item.scheduledBlocks || []).filter((b) => b.id !== blockId)
+            const totalPlanned = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes / 60, 0)
+            return {
+              ...item,
+              scheduledBlocks,
+              remainingHours: (item.estimatedHours || 0) - totalPlanned - (item.actualHours || 0),
+              updatedAt: new Date().toISOString(),
+            }
+          }),
+        })),
+      
+      logWork: (taskId, log) =>
+        set((state) => ({
+          items: state.items.map((item) => {
+            if (item.id !== taskId) return item
+            const newLog: WorkLog = {
+              ...log,
+              id: crypto.randomUUID(),
+              taskId,
+            }
+            const workLogs = [...(item.workLogs || []), newLog]
+            const totalActual = workLogs.reduce((sum, l) => sum + l.durationMinutes / 60, 0)
+            
+            // Tail reduction: shrink/remove future scheduled blocks when work is logged
+            // Calculate how much total time we have vs need
+            const estimatedHours = item.estimatedHours || 0
+            const usedHours = totalActual
+            const neededHours = Math.max(0, estimatedHours - usedHours)
+            
+            // Get current date for comparison
+            const today = formatDateLocal(new Date())
+            
+            // Sort blocks by date descending (future first), then by time descending
+            let scheduledBlocks = [...(item.scheduledBlocks || [])].sort((a, b) => {
+              if (a.date !== b.date) return b.date.localeCompare(a.date) // future dates first
+              return (b.startHour * 60 + b.startMinute) - (a.startHour * 60 + a.startMinute) // later times first
+            })
+            
+            // Calculate total planned hours and reduce from tail if needed
+            let totalPlannedMinutes = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes, 0)
+            const neededMinutes = neededHours * 60
+            
+            // If we have more planned than needed, reduce from the tail (future blocks)
+            if (totalPlannedMinutes > neededMinutes) {
+              const excessMinutes = totalPlannedMinutes - neededMinutes
+              let removedMinutes = 0
+              
+              scheduledBlocks = scheduledBlocks.filter((block) => {
+                // Never modify past blocks
+                if (block.date < today) return true
+                
+                // If we've already removed enough, keep this block
+                if (removedMinutes >= excessMinutes) return true
+                
+                // Check if we should remove or shrink this block
+                const blockMinutes = block.durationMinutes
+                if (removedMinutes + blockMinutes <= excessMinutes) {
+                  // Remove entire block
+                  removedMinutes += blockMinutes
+                  return false
+                } else {
+                  // Shrink this block (keep some of it)
+                  const toRemove = excessMinutes - removedMinutes
+                  block.durationMinutes = blockMinutes - toRemove
+                  removedMinutes = excessMinutes
+                  return true
+                }
+              })
+            }
+            
+            const totalPlanned = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes / 60, 0)
+            
+            return {
+              ...item,
+              workLogs,
+              scheduledBlocks,
+              actualHours: totalActual,
+              remainingHours: estimatedHours - totalPlanned - totalActual,
+              updatedAt: new Date().toISOString(),
+            }
+          }),
+        })),
+      
+      getShiftForDate: (date) => {
+        const state = useStore.getState()
+        const assignedShiftId = state.dayShiftAssignments[date]
+        if (assignedShiftId) {
+          const shift = state.shiftTemplates.find((t) => t.id === assignedShiftId)
+          if (shift) return shift
+        }
+        // Default: weekdays = day_shift, weekends = off_day
+        const dayOfWeek = new Date(date).getDay()
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+        const defaultShiftId = isWeekend ? 'off_day' : 'day_shift'
+        return state.shiftTemplates.find((t) => t.id === defaultShiftId) || state.shiftTemplates[0]
+      },
       addItem: (itemData) =>
         set((state) => {
           const score = calcScore(itemData.personalValue, itemData.systemImpact, itemData.effort)
