@@ -2,14 +2,14 @@
 
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import { useI18n } from '@/hooks/use-i18n'
 import { WeekGrid } from '@/components/planner/calendar-grid'
 import { CapacitySummary } from '@/components/planner/capacity-summary'
+import { PlannerHeader } from '@/components/planner/planner-header'
 import {
   parseDate,
-  formatDateISO,
+  formatDateLocal,
   getWeekStart,
   getWeekDates,
   getNextWeek,
@@ -38,7 +38,7 @@ export default function WeekViewPage() {
 
     for (const date of weekDates) {
       const shift = getShiftForDate(date)
-      totalAvailable += shift.totalWorkHours
+      totalAvailable += calculateAvailableHours(shift)
 
       for (const task of items) {
         if (task.scheduledBlocks) {
@@ -62,7 +62,8 @@ export default function WeekViewPage() {
   }, [weekDates, items, getShiftForDate])
 
   // Navigation
-  const goToToday = () => setSelectedDate(formatDateISO(new Date()))
+  const today = formatDateLocal(new Date())
+  const goToToday = () => setSelectedDate(today)
   const goToPrev = () => setSelectedDate(getPrevWeek(selectedDate))
   const goToNext = () => setSelectedDate(getNextWeek(selectedDate))
 
@@ -76,66 +77,38 @@ export default function WeekViewPage() {
   // Format week range for display
   const weekStartDate = parseDate(weekStart)
   const weekEndDate = parseDate(weekDates[weekDates.length - 1])
-  const isCurrentWeek = weekDates.includes(formatDateISO(new Date()))
+  const isCurrentWeek = weekDates.includes(today)
+  const localeStr = t.locale === 'ru' ? 'ru-RU' : 'en-US'
+
+  const weekTitle = `${weekStartDate.toLocaleDateString(localeStr, {
+    month: 'short',
+    day: 'numeric',
+  })} - ${weekEndDate.toLocaleDateString(localeStr, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })}`
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Week header */}
-      <div className="border-b border-border px-4 py-3 bg-card/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={goToPrev}
-              className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-              aria-label="Previous week"
-            >
-              <span className="text-sm">&larr;</span>
-            </button>
+      {/* Unified header with view switcher */}
+      <PlannerHeader
+        title={weekTitle}
+        isCurrentPeriod={isCurrentWeek}
+        onPrev={goToPrev}
+        onNext={goToNext}
+        onToday={goToToday}
+        todayLabel={t.planner?.thisWeek || 'This Week'}
+      >
+        <CapacitySummary
+          available={weeklyStats.totalAvailable}
+          planned={weeklyStats.totalPlanned}
+          actual={weeklyStats.totalActual}
+          compact
+        />
+      </PlannerHeader>
 
-            <div className="text-center min-w-[180px]">
-              <div className={cn('text-sm font-bold', isCurrentWeek && 'text-neon')}>
-                {weekStartDate.toLocaleDateString(t.locale === 'ru' ? 'ru-RU' : 'en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-                {' - '}
-                {weekEndDate.toLocaleDateString(t.locale === 'ru' ? 'ru-RU' : 'en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </div>
-            </div>
-
-            <button
-              onClick={goToNext}
-              className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-              aria-label="Next week"
-            >
-              <span className="text-sm">&rarr;</span>
-            </button>
-
-            {!isCurrentWeek && (
-              <button
-                onClick={goToToday}
-                className="px-2 py-1 rounded text-[10px] font-medium bg-neon/10 text-neon hover:bg-neon/20 transition-colors"
-              >
-                {t.planner?.thisWeek || 'This Week'}
-              </button>
-            )}
-          </div>
-
-          {/* Weekly summary */}
-          <CapacitySummary
-            available={weeklyStats.totalAvailable}
-            planned={weeklyStats.totalPlanned}
-            actual={weeklyStats.totalActual}
-            compact
-          />
-        </div>
-      </div>
-
-      {/* Week grid */}
+      {/* Week content */}
       <div className="flex-1 overflow-auto p-4">
         <WeekGrid
           weekDates={weekDates}
@@ -162,7 +135,7 @@ export default function WeekViewPage() {
             if (dateBlocks.length === 0) return null
 
             const displayDate = parseDate(date)
-            const dayName = displayDate.toLocaleDateString(t.locale === 'ru' ? 'ru-RU' : 'en-US', {
+            const dayName = displayDate.toLocaleDateString(localeStr, {
               weekday: 'short',
               day: 'numeric',
             })

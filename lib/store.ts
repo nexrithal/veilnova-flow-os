@@ -9,21 +9,30 @@ import {
 } from './types'
 import { Locale } from './i18n'
 
-// Default shift templates
+// Helper to format date as YYYY-MM-DD using LOCAL time (not UTC)
+function formatDateLocal(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Default shift templates with realistic patterns
+// Key principle: 'work' blocks = external job (NOT personal task capacity)
+//               'free' blocks = personal task capacity
+//               'dead' blocks = prep, commute, transitions (not usable)
+//               'sleep' blocks = blocked
 const DEFAULT_SHIFT_TEMPLATES: ShiftTemplate[] = [
   {
     id: 'day_shift',
     name: 'Day Shift',
     type: 'day_shift',
-    totalWorkHours: 8,
+    totalWorkHours: 11, // 07:00-18:00 main work
     blocks: [
-      { id: 'ds-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 7, endMinute: 0, availabilityLevel: 'blocked' },
-      { id: 'ds-morning', type: 'free', startHour: 7, startMinute: 0, endHour: 8, endMinute: 0, label: 'Morning routine', availabilityLevel: 'low' },
-      { id: 'ds-commute1', type: 'commute', startHour: 8, startMinute: 0, endHour: 9, endMinute: 0, availabilityLevel: 'low' },
-      { id: 'ds-work1', type: 'work', startHour: 9, startMinute: 0, endHour: 13, endMinute: 0, label: 'Deep work block', availabilityLevel: 'high' },
-      { id: 'ds-lunch', type: 'free', startHour: 13, startMinute: 0, endHour: 14, endMinute: 0, label: 'Lunch', availabilityLevel: 'low' },
-      { id: 'ds-work2', type: 'work', startHour: 14, startMinute: 0, endHour: 18, endMinute: 0, label: 'Afternoon work', availabilityLevel: 'high' },
-      { id: 'ds-commute2', type: 'commute', startHour: 18, startMinute: 0, endHour: 19, endMinute: 0, availabilityLevel: 'low' },
+      { id: 'ds-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 5, endMinute: 0, availabilityLevel: 'blocked' },
+      { id: 'ds-dead1', type: 'dead', startHour: 5, startMinute: 0, endHour: 7, endMinute: 0, label: 'Morning prep', availabilityLevel: 'blocked' },
+      { id: 'ds-work', type: 'work', startHour: 7, startMinute: 0, endHour: 18, endMinute: 0, label: 'Work shift', availabilityLevel: 'high' },
+      { id: 'ds-dead2', type: 'dead', startHour: 18, startMinute: 0, endHour: 19, endMinute: 0, label: 'Commute/transition', availabilityLevel: 'blocked' },
       { id: 'ds-evening', type: 'free', startHour: 19, startMinute: 0, endHour: 23, endMinute: 0, label: 'Evening free', availabilityLevel: 'medium' },
       { id: 'ds-sleep2', type: 'sleep', startHour: 23, startMinute: 0, endHour: 24, endMinute: 0, availabilityLevel: 'blocked' },
     ],
@@ -32,23 +41,27 @@ const DEFAULT_SHIFT_TEMPLATES: ShiftTemplate[] = [
     id: 'night_shift',
     name: 'Night Shift',
     type: 'night_shift',
-    totalWorkHours: 8,
+    totalWorkHours: 10, // 18:00-04:00 work (displayed as 18-24 + next day continuation)
     blocks: [
-      { id: 'ns-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 8, endMinute: 0, availabilityLevel: 'blocked' },
-      { id: 'ns-sleep2', type: 'sleep', startHour: 8, startMinute: 0, endHour: 14, endMinute: 0, availabilityLevel: 'blocked' },
-      { id: 'ns-afternoon', type: 'free', startHour: 14, startMinute: 0, endHour: 16, endMinute: 0, label: 'Afternoon prep', availabilityLevel: 'medium' },
-      { id: 'ns-commute1', type: 'commute', startHour: 16, startMinute: 0, endHour: 17, endMinute: 0, availabilityLevel: 'low' },
-      { id: 'ns-work', type: 'work', startHour: 17, startMinute: 0, endHour: 24, endMinute: 0, label: 'Night work', availabilityLevel: 'high' },
+      // Night shift: sleep during day, work in evening/night
+      { id: 'ns-work-cont', type: 'work', startHour: 0, startMinute: 0, endHour: 4, endMinute: 0, label: 'Night work (cont)', availabilityLevel: 'high' },
+      { id: 'ns-dead1', type: 'dead', startHour: 4, startMinute: 0, endHour: 5, endMinute: 0, label: 'Wind down', availabilityLevel: 'blocked' },
+      { id: 'ns-sleep', type: 'sleep', startHour: 5, startMinute: 0, endHour: 14, endMinute: 0, label: 'Sleep', availabilityLevel: 'blocked' },
+      { id: 'ns-free', type: 'free', startHour: 14, startMinute: 0, endHour: 16, endMinute: 0, label: 'Afternoon free', availabilityLevel: 'medium' },
+      { id: 'ns-dead2', type: 'dead', startHour: 16, startMinute: 0, endHour: 18, endMinute: 0, label: 'Prep/commute', availabilityLevel: 'blocked' },
+      { id: 'ns-work', type: 'work', startHour: 18, startMinute: 0, endHour: 24, endMinute: 0, label: 'Night work', availabilityLevel: 'high' },
     ],
   },
   {
     id: 'off_day',
     name: 'Off Day',
     type: 'off_day',
-    totalWorkHours: 0,
+    totalWorkHours: 0, // No external work
     blocks: [
-      { id: 'od-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 9, endMinute: 0, availabilityLevel: 'blocked' },
-      { id: 'od-free', type: 'free', startHour: 9, startMinute: 0, endHour: 23, endMinute: 0, label: 'Free day', availabilityLevel: 'medium' },
+      { id: 'od-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 8, endMinute: 0, availabilityLevel: 'blocked' },
+      { id: 'od-morning', type: 'free', startHour: 8, startMinute: 0, endHour: 9, endMinute: 0, label: 'Soft wake', availabilityLevel: 'low' },
+      { id: 'od-free', type: 'free', startHour: 9, startMinute: 0, endHour: 20, endMinute: 0, label: 'Free day', availabilityLevel: 'high' },
+      { id: 'od-evening', type: 'free', startHour: 20, startMinute: 0, endHour: 23, endMinute: 0, label: 'Evening wind-down', availabilityLevel: 'low' },
       { id: 'od-sleep2', type: 'sleep', startHour: 23, startMinute: 0, endHour: 24, endMinute: 0, availabilityLevel: 'blocked' },
     ],
   },
@@ -253,7 +266,7 @@ export const useStore = create<StoreState>()(
       setTheme: (theme) => set({ theme }),
       
       // Planner initial state
-      selectedDate: new Date().toISOString().split('T')[0],
+      selectedDate: formatDateLocal(new Date()),
       calendarView: 'day' as CalendarView,
       shiftTemplates: DEFAULT_SHIFT_TEMPLATES,
       dayShiftAssignments: {},

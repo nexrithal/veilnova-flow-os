@@ -10,16 +10,16 @@ import { ShiftSelector } from '@/components/planner/shift-selector'
 import { CapacitySummary } from '@/components/planner/capacity-summary'
 import { WorkLogEntry, QuickLogButton } from '@/components/planner/work-log-entry'
 import { ScheduleModal } from '@/components/planner/schedule-modal'
+import { PlannerHeader } from '@/components/planner/planner-header'
 import {
   parseDate,
-  formatDateISO,
+  formatDateLocal,
   getNextDay,
   getPrevDay,
   getScheduledBlocksForDate,
   getWorkLogsForDate,
   calculateAvailableHours,
-  calculatePlannedHours,
-  calculateActualHours,
+  calculateWorkHours,
   getOverdueTasks,
   formatHours,
 } from '@/lib/planner-logic'
@@ -53,8 +53,9 @@ export default function DayViewPage() {
     [items, selectedDate]
   )
 
-  // Calculate capacity
+  // Calculate capacity (only free blocks count as available personal capacity)
   const availableHours = calculateAvailableHours(currentShift, dateOverrides)
+  const workHours = calculateWorkHours(currentShift)
   const plannedHours = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes / 60, 0)
   const actualHours = workLogs.reduce((sum, l) => sum + l.durationMinutes / 60, 0)
 
@@ -65,7 +66,8 @@ export default function DayViewPage() {
   const overdueTasks = getOverdueTasks(items, selectedDate)
 
   // Navigation
-  const goToToday = () => setSelectedDate(formatDateISO(new Date()))
+  const today = formatDateLocal(new Date())
+  const goToToday = () => setSelectedDate(today)
   const goToPrev = () => setSelectedDate(getPrevDay(selectedDate))
   const goToNext = () => setSelectedDate(getNextDay(selectedDate))
 
@@ -84,67 +86,40 @@ export default function DayViewPage() {
 
   // Format the selected date for display
   const displayDate = parseDate(selectedDate)
-  const isToday = selectedDate === formatDateISO(new Date())
+  const isToday = selectedDate === today
+  const localeStr = t.locale === 'ru' ? 'ru-RU' : 'en-US'
+
+  const dateTitle = displayDate.toLocaleDateString(localeStr, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  const dateSubtitle = displayDate.toLocaleDateString(localeStr, { weekday: 'long' })
 
   return (
-    <div className="flex flex-col lg:flex-row h-full overflow-hidden">
-      {/* Main timeline area */}
-      <div className="flex-1 overflow-auto">
-        {/* Date header */}
-        <div className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={goToPrev}
-                className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                aria-label="Previous day"
-              >
-                <span className="text-sm">&larr;</span>
-              </button>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Unified header with view switcher */}
+      <PlannerHeader
+        title={dateTitle}
+        subtitle={dateSubtitle}
+        isCurrentPeriod={isToday}
+        onPrev={goToPrev}
+        onNext={goToNext}
+        onToday={goToToday}
+        todayLabel={t.planner?.today || 'Today'}
+      >
+        <CapacitySummary
+          available={availableHours}
+          planned={plannedHours}
+          actual={actualHours}
+          compact
+        />
+      </PlannerHeader>
 
-              <div className="text-center min-w-[140px]">
-                <div className="text-xs text-muted-foreground">
-                  {displayDate.toLocaleDateString(t.locale === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'long' })}
-                </div>
-                <div className={cn('text-sm font-bold', isToday && 'text-neon')}>
-                  {displayDate.toLocaleDateString(t.locale === 'ru' ? 'ru-RU' : 'en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </div>
-              </div>
-
-              <button
-                onClick={goToNext}
-                className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                aria-label="Next day"
-              >
-                <span className="text-sm">&rarr;</span>
-              </button>
-
-              {!isToday && (
-                <button
-                  onClick={goToToday}
-                  className="px-2 py-1 rounded text-[10px] font-medium bg-neon/10 text-neon hover:bg-neon/20 transition-colors"
-                >
-                  {t.planner?.today || 'Today'}
-                </button>
-              )}
-            </div>
-
-            {/* Quick capacity indicator */}
-            <CapacitySummary
-              available={availableHours}
-              planned={plannedHours}
-              actual={actualHours}
-              compact
-            />
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <div className="p-4">
+      {/* Main content */}
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        {/* Timeline area */}
+        <div className="flex-1 overflow-auto p-4">
           <TimeTimeline
             shift={currentShift}
             scheduledBlocks={scheduledBlocks}
@@ -157,130 +132,135 @@ export default function DayViewPage() {
             }}
           />
         </div>
-      </div>
 
-      {/* Sidebar panel */}
-      <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-auto">
-        <div className="p-4 space-y-6">
-          {/* Shift selection */}
-          <div className="space-y-2">
-            <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              {t.planner?.shift || 'Shift'}
-            </h3>
-            <ShiftSelector
-              shifts={shiftTemplates}
-              selectedShiftId={dayShiftAssignments[selectedDate] || currentShift.id}
-              onSelect={(shiftId) => assignShiftToDay(selectedDate, shiftId)}
-            />
-          </div>
-
-          {/* Capacity summary */}
-          <div className="space-y-2">
-            <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              {t.planner?.capacity || 'Capacity'}
-            </h3>
-            <CapacitySummary
-              available={availableHours}
-              planned={plannedHours}
-              actual={actualHours}
-            />
-          </div>
-
-          {/* Overdue warnings */}
-          {overdueTasks.length > 0 && (
+        {/* Sidebar panel */}
+        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border bg-card/50 overflow-auto">
+          <div className="p-4 space-y-6">
+            {/* Shift selection */}
             <div className="space-y-2">
-              <h3 className="text-[10px] font-medium text-destructive uppercase tracking-wider">
-                {t.planner?.overdue || 'Overdue'} ({overdueTasks.length})
+              <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                {t.planner?.shift || 'Shift'}
               </h3>
-              <div className="space-y-1">
-                {overdueTasks.slice(0, 3).map((task) => (
-                  <div
-                    key={task.id}
-                    className="p-2 rounded bg-destructive/10 border border-destructive/30"
-                  >
-                    <p className="text-[11px] font-medium text-destructive truncate">
-                      {task.title}
-                    </p>
-                    <p className="text-[9px] text-muted-foreground">
-                      {t.planner?.deadline || 'Deadline'}: {task.deadline}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <ShiftSelector
+                shifts={shiftTemplates}
+                selectedShiftId={dayShiftAssignments[selectedDate] || currentShift.id}
+                onSelect={(shiftId) => assignShiftToDay(selectedDate, shiftId)}
+              />
             </div>
-          )}
 
-          {/* Scheduled tasks for today */}
-          <div className="space-y-2">
-            <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              {t.planner?.scheduled || 'Scheduled'} ({scheduledBlocks.length})
-            </h3>
-            {scheduledBlocks.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                {t.planner?.noScheduled || 'No tasks scheduled. Click on timeline to add.'}
-              </p>
-            ) : (
-              <div className="space-y-1.5">
-                {scheduledBlocks.map((block) => (
-                  <div
-                    key={block.id}
-                    className="p-2 rounded bg-neon/10 border border-neon/20 cursor-pointer hover:bg-neon/15 transition-colors"
-                    onClick={() => {
-                      setSelectedTask(block.task)
-                      setScheduleTime({ hour: block.startHour, minute: block.startMinute })
-                      setScheduleModalOpen(true)
+            {/* Capacity summary - detailed */}
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                {t.planner?.capacity || 'Capacity'}
+              </h3>
+              <CapacitySummary
+                available={availableHours}
+                planned={plannedHours}
+                actual={actualHours}
+              />
+              {workHours > 0 && (
+                <p className="text-[9px] text-muted-foreground">
+                  +{workHours.toFixed(0)}h {t.planner?.workHours || 'work'}
+                </p>
+              )}
+            </div>
+
+            {/* Overdue warnings */}
+            {overdueTasks.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-[10px] font-medium text-destructive uppercase tracking-wider">
+                  {t.planner?.overdue || 'Overdue'} ({overdueTasks.length})
+                </h3>
+                <div className="space-y-1">
+                  {overdueTasks.slice(0, 3).map((task) => (
+                    <div
+                      key={task.id}
+                      className="p-2 rounded bg-destructive/10 border border-destructive/30"
+                    >
+                      <p className="text-[11px] font-medium text-destructive truncate">
+                        {task.title}
+                      </p>
+                      <p className="text-[9px] text-muted-foreground">
+                        {t.planner?.deadline || 'Deadline'}: {task.deadline}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Scheduled tasks for today */}
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                {t.planner?.scheduled || 'Scheduled'} ({scheduledBlocks.length})
+              </h3>
+              {scheduledBlocks.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {t.planner?.noScheduled || 'No tasks scheduled. Click on timeline to add.'}
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {scheduledBlocks.map((block) => (
+                    <div
+                      key={block.id}
+                      className="p-2 rounded bg-neon/10 border border-neon/20 cursor-pointer hover:bg-neon/15 transition-colors"
+                      onClick={() => {
+                        setSelectedTask(block.task)
+                        setScheduleTime({ hour: block.startHour, minute: block.startMinute })
+                        setScheduleModalOpen(true)
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-medium truncate">{block.task.title}</p>
+                          <p className="text-[9px] text-muted-foreground">
+                            {block.startHour.toString().padStart(2, '0')}:{block.startMinute.toString().padStart(2, '0')} - {formatHours(block.durationMinutes / 60)}
+                          </p>
+                        </div>
+                        <QuickLogButton task={block.task} date={selectedDate} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Quick log for any active task */}
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                {t.planner?.quickLog || 'Quick Log'}
+              </h3>
+              {activeTasks.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {t.planner?.noActiveTasks || 'No active tasks'}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <select
+                    className="w-full px-2 py-1.5 rounded text-xs bg-input border border-border focus:ring-1 focus:ring-neon"
+                    value={selectedTask?.id || ''}
+                    onChange={(e) => {
+                      const task = items.find((i) => i.id === e.target.value)
+                      setSelectedTask(task || null)
                     }}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-medium truncate">{block.task.title}</p>
-                        <p className="text-[9px] text-muted-foreground">
-                          {block.startHour.toString().padStart(2, '0')}:{block.startMinute.toString().padStart(2, '0')} - {formatHours(block.durationMinutes / 60)}
-                        </p>
-                      </div>
-                      <QuickLogButton task={block.task} date={selectedDate} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Quick log for any active task */}
-          <div className="space-y-2">
-            <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              {t.planner?.quickLog || 'Quick Log'}
-            </h3>
-            {activeTasks.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                {t.planner?.noActiveTasks || 'No active tasks'}
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <select
-                  className="w-full px-2 py-1.5 rounded text-xs bg-input border border-border focus:ring-1 focus:ring-neon"
-                  value={selectedTask?.id || ''}
-                  onChange={(e) => {
-                    const task = items.find((i) => i.id === e.target.value)
-                    setSelectedTask(task || null)
-                  }}
-                >
-                  <option value="">{t.planner?.selectTask || 'Select task...'}</option>
-                  {activeTasks.map((task) => (
-                    <option key={task.id} value={task.id}>
-                      {task.title}
-                    </option>
-                  ))}
-                </select>
-                {selectedTask && (
-                  <WorkLogEntry
-                    task={selectedTask}
-                    date={selectedDate}
-                    onComplete={() => {}}
-                  />
-                )}
-              </div>
-            )}
+                    <option value="">{t.planner?.selectTask || 'Select task...'}</option>
+                    {activeTasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTask && (
+                    <WorkLogEntry
+                      task={selectedTask}
+                      date={selectedDate}
+                      onComplete={() => {}}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

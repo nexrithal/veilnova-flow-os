@@ -7,13 +7,15 @@ import { useStore } from '@/lib/store'
 import { useI18n } from '@/hooks/use-i18n'
 import { CalendarGrid } from '@/components/planner/calendar-grid'
 import { CapacitySummary } from '@/components/planner/capacity-summary'
+import { PlannerHeader } from '@/components/planner/planner-header'
 import {
   parseDate,
-  formatDateISO,
+  formatDateLocal,
   getMonthDates,
   getNextMonth,
   getPrevMonth,
   getTasksWithDeadlines,
+  calculateAvailableHours,
 } from '@/lib/planner-logic'
 
 export default function MonthViewPage() {
@@ -39,7 +41,7 @@ export default function MonthViewPage() {
 
     for (const date of monthDates) {
       const shift = getShiftForDate(date)
-      totalAvailable += shift.totalWorkHours
+      totalAvailable += calculateAvailableHours(shift)
 
       for (const task of items) {
         if (task.scheduledBlocks) {
@@ -70,7 +72,7 @@ export default function MonthViewPage() {
   }, [monthDates, items])
 
   // Navigation
-  const today = formatDateISO(new Date())
+  const today = formatDateLocal(new Date())
   const todayDate = parseDate(today)
   const isCurrentMonth = todayDate.getFullYear() === year && todayDate.getMonth() === month
   
@@ -86,58 +88,30 @@ export default function MonthViewPage() {
   }
 
   // Format month for display
-  const monthName = currentDate.toLocaleDateString(t.locale === 'ru' ? 'ru-RU' : 'en-US', {
+  const localeStr = t.locale === 'ru' ? 'ru-RU' : 'en-US'
+  const monthTitle = currentDate.toLocaleDateString(localeStr, {
     month: 'long',
     year: 'numeric',
   })
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Month header */}
-      <div className="border-b border-border px-4 py-3 bg-card/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={goToPrev}
-              className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-              aria-label="Previous month"
-            >
-              <span className="text-sm">&larr;</span>
-            </button>
-
-            <div className="text-center min-w-[140px]">
-              <div className={cn('text-sm font-bold capitalize', isCurrentMonth && 'text-neon')}>
-                {monthName}
-              </div>
-            </div>
-
-            <button
-              onClick={goToNext}
-              className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-              aria-label="Next month"
-            >
-              <span className="text-sm">&rarr;</span>
-            </button>
-
-            {!isCurrentMonth && (
-              <button
-                onClick={goToToday}
-                className="px-2 py-1 rounded text-[10px] font-medium bg-neon/10 text-neon hover:bg-neon/20 transition-colors"
-              >
-                {t.planner?.thisMonth || 'This Month'}
-              </button>
-            )}
-          </div>
-
-          {/* Monthly summary */}
-          <CapacitySummary
-            available={monthlyStats.totalAvailable}
-            planned={monthlyStats.totalPlanned}
-            actual={monthlyStats.totalActual}
-            compact
-          />
-        </div>
-      </div>
+      {/* Unified header with view switcher */}
+      <PlannerHeader
+        title={monthTitle}
+        isCurrentPeriod={isCurrentMonth}
+        onPrev={goToPrev}
+        onNext={goToNext}
+        onToday={goToToday}
+        todayLabel={t.planner?.thisMonth || 'This Month'}
+      >
+        <CapacitySummary
+          available={monthlyStats.totalAvailable}
+          planned={monthlyStats.totalPlanned}
+          actual={monthlyStats.totalActual}
+          compact
+        />
+      </PlannerHeader>
 
       {/* Month content */}
       <div className="flex-1 overflow-auto p-4">
@@ -189,7 +163,7 @@ export default function MonthViewPage() {
                               'text-[10px] font-medium',
                               isPast ? 'text-destructive' : 'text-muted-foreground'
                             )}>
-                              {deadlineDate.toLocaleDateString(t.locale === 'ru' ? 'ru-RU' : 'en-US', {
+                              {deadlineDate.toLocaleDateString(localeStr, {
                                 weekday: 'short',
                                 day: 'numeric',
                               })}

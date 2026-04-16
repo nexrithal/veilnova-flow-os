@@ -3,8 +3,8 @@
 import { cn } from '@/lib/utils'
 import { TaskItem, ShiftTemplate } from '@/lib/types'
 import { 
-  parseDate, formatDateISO, getMonthDates, getCapacityStatus, 
-  getCapacityBgColor, calculatePlannedHours, getTasksWithDeadlines
+  parseDate, formatDateLocal, getMonthDates, getCapacityStatus, 
+  getCapacityBgColor, getTasksWithDeadlines, calculateAvailableHours
 } from '@/lib/planner-logic'
 import { ShiftBadge } from './shift-selector'
 import { useI18n } from '@/hooks/use-i18n'
@@ -32,7 +32,7 @@ export function CalendarGrid({
 }: CalendarGridProps) {
   const t = useI18n()
   const monthDates = getMonthDates(year, month)
-  const today = formatDateISO(new Date())
+  const today = formatDateLocal(new Date())
   
   // Get the first day of the month (0 = Sunday, need to convert to Monday-start)
   const firstDayOfMonth = new Date(year, month, 1).getDay()
@@ -92,7 +92,7 @@ export function CalendarGrid({
           const isWeekend = d.getDay() === 0 || d.getDay() === 6
           const shift = getShiftForDate(date)
           const planned = plannedByDate[date] || 0
-          const available = shift.totalWorkHours
+          const available = calculateAvailableHours(shift)
           const status = getCapacityStatus(planned, available)
           const hasDeadline = tasksWithDeadlines.some((t) => t.deadline === date)
 
@@ -161,7 +161,7 @@ export function WeekGrid({
   className,
 }: WeekGridProps) {
   const t = useI18n()
-  const today = formatDateISO(new Date())
+  const today = formatDateLocal(new Date())
 
   return (
     <div className={cn('grid grid-cols-7 gap-2', className)}>
@@ -193,7 +193,8 @@ export function WeekGrid({
           }
         }
 
-        const status = getCapacityStatus(planned, shift.totalWorkHours)
+        const available = calculateAvailableHours(shift)
+        const status = getCapacityStatus(planned, available)
         const hasDeadlines = tasks.some((t) => t.deadline === date)
 
         return (
@@ -241,20 +242,20 @@ export function WeekGrid({
                     className={cn('h-full transition-all', 
                       status === 'overloaded' ? 'bg-destructive' : 'bg-neon'
                     )}
-                    style={{ width: `${Math.min((planned / Math.max(shift.totalWorkHours, 1)) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((planned / Math.max(available, 0.1)) * 100, 100)}%` }}
                   />
                 </div>
                 {actual > 0 && (
                   <div className="h-1 bg-secondary rounded-full overflow-hidden">
                     <div
                       className="h-full bg-chart-2"
-                      style={{ width: `${Math.min((actual / Math.max(shift.totalWorkHours, 1)) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((actual / Math.max(available, 0.1)) * 100, 100)}%` }}
                     />
                   </div>
                 )}
                 <div className="flex justify-between text-[9px] text-muted-foreground tabular-nums">
                   <span>{planned.toFixed(1)}h</span>
-                  <span>{shift.totalWorkHours}h</span>
+                  <span>{available.toFixed(0)}h</span>
                 </div>
               </div>
             </div>

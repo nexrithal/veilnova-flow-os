@@ -14,10 +14,17 @@ export function parseDate(dateStr: string): Date {
   return new Date(year, month - 1, day)
 }
 
-// Format date as YYYY-MM-DD
-export function formatDateISO(date: Date): string {
-  return date.toISOString().split('T')[0]
+// Format date as YYYY-MM-DD using LOCAL time (not UTC)
+// This avoids timezone bugs where toISOString() would shift dates
+export function formatDateLocal(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
+
+// Alias for backward compatibility
+export const formatDateISO = formatDateLocal
 
 // Get array of dates for a week starting from given date
 export function getWeekDates(startDate: string): string[] {
@@ -60,14 +67,16 @@ export function getBlockDuration(block: TimeBlock): number {
 }
 
 // Calculate available hours from shift template
+// IMPORTANT: Only 'free' blocks count as available personal capacity
+// 'work' blocks are external job time, NOT available for personal tasks
 export function calculateAvailableHours(shift: ShiftTemplate, overrides: DayOverride[] = []): number {
   let totalMinutes = 0
   
   for (const block of shift.blocks) {
-    if (block.type === 'work' || block.type === 'free') {
-      if (block.availabilityLevel !== 'blocked') {
-        totalMinutes += getBlockDuration(block)
-      }
+    // Only count FREE blocks as usable personal capacity
+    // Work blocks are external job time, not personal task time
+    if (block.type === 'free' && block.availabilityLevel !== 'blocked') {
+      totalMinutes += getBlockDuration(block)
     }
   }
   
@@ -76,11 +85,25 @@ export function calculateAvailableHours(shift: ShiftTemplate, overrides: DayOver
     if (override.overrideType === 'reduce_capacity') {
       totalMinutes = Math.floor(totalMinutes * 0.5)
     } else if (override.overrideType === 'remove_sleep') {
-      // Add back some hours
+      // Add back some hours from recovery
       totalMinutes += 120
+    } else if (override.overrideType === 'extend_work') {
+      // Extended free time on this day
+      totalMinutes += 60
     }
   }
   
+  return totalMinutes / 60
+}
+
+// Calculate total work hours (external job, not personal tasks)
+export function calculateWorkHours(shift: ShiftTemplate): number {
+  let totalMinutes = 0
+  for (const block of shift.blocks) {
+    if (block.type === 'work') {
+      totalMinutes += getBlockDuration(block)
+    }
+  }
   return totalMinutes / 60
 }
 
@@ -151,21 +174,22 @@ export function getTimeBlockColor(type: TimeBlock['type']): string {
 }
 
 // Check if work mode is compatible with availability level
+// Returns true if allowed (may still have warnings)
 export function isWorkModeCompatible(workMode: WorkMode, availability: AvailabilityLevel): boolean {
+  // Only block if the slot is completely blocked (sleep, etc.)
   if (availability === 'blocked') return false
-  if (workMode === 'deep' && availability !== 'high') return false
-  if (workMode === 'standard' && availability === 'low') return false
+  // Allow all work modes in all other slots - use warnings instead of blocking
   return true
 }
 
-// Get work mode warning
+// Get work mode warning (recommendations, not hard blocks)
 export function getWorkModeWarning(workMode: WorkMode, availability: AvailabilityLevel): string | null {
   if (availability === 'blocked') return 'This time slot is blocked'
   if (workMode === 'deep' && availability !== 'high') {
-    return 'Deep work requires high availability window'
+    return 'Deep work works best in high-availability windows'
   }
   if (workMode === 'standard' && availability === 'low') {
-    return 'Standard work not recommended in low availability'
+    return 'Consider light/micro work in low-availability slots'
   }
   return null
 }
