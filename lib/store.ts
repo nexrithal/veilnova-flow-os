@@ -2,8 +2,57 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { TaskItem, ItemStatus, ItemType, Horizon, LogEntry, calcScore } from './types'
+import { 
+  TaskItem, ItemStatus, ItemType, Horizon, LogEntry, calcScore,
+  ShiftTemplate, ShiftType, DayOverride, ScheduledBlock, WorkLog,
+  TimeBlock, CalendarView, WorkMode
+} from './types'
 import { Locale } from './i18n'
+
+// Default shift templates
+const DEFAULT_SHIFT_TEMPLATES: ShiftTemplate[] = [
+  {
+    id: 'day_shift',
+    name: 'Day Shift',
+    type: 'day_shift',
+    totalWorkHours: 8,
+    blocks: [
+      { id: 'ds-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 7, endMinute: 0, availabilityLevel: 'blocked' },
+      { id: 'ds-morning', type: 'free', startHour: 7, startMinute: 0, endHour: 8, endMinute: 0, label: 'Morning routine', availabilityLevel: 'low' },
+      { id: 'ds-commute1', type: 'commute', startHour: 8, startMinute: 0, endHour: 9, endMinute: 0, availabilityLevel: 'low' },
+      { id: 'ds-work1', type: 'work', startHour: 9, startMinute: 0, endHour: 13, endMinute: 0, label: 'Deep work block', availabilityLevel: 'high' },
+      { id: 'ds-lunch', type: 'free', startHour: 13, startMinute: 0, endHour: 14, endMinute: 0, label: 'Lunch', availabilityLevel: 'low' },
+      { id: 'ds-work2', type: 'work', startHour: 14, startMinute: 0, endHour: 18, endMinute: 0, label: 'Afternoon work', availabilityLevel: 'high' },
+      { id: 'ds-commute2', type: 'commute', startHour: 18, startMinute: 0, endHour: 19, endMinute: 0, availabilityLevel: 'low' },
+      { id: 'ds-evening', type: 'free', startHour: 19, startMinute: 0, endHour: 23, endMinute: 0, label: 'Evening free', availabilityLevel: 'medium' },
+      { id: 'ds-sleep2', type: 'sleep', startHour: 23, startMinute: 0, endHour: 24, endMinute: 0, availabilityLevel: 'blocked' },
+    ],
+  },
+  {
+    id: 'night_shift',
+    name: 'Night Shift',
+    type: 'night_shift',
+    totalWorkHours: 8,
+    blocks: [
+      { id: 'ns-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 8, endMinute: 0, availabilityLevel: 'blocked' },
+      { id: 'ns-sleep2', type: 'sleep', startHour: 8, startMinute: 0, endHour: 14, endMinute: 0, availabilityLevel: 'blocked' },
+      { id: 'ns-afternoon', type: 'free', startHour: 14, startMinute: 0, endHour: 16, endMinute: 0, label: 'Afternoon prep', availabilityLevel: 'medium' },
+      { id: 'ns-commute1', type: 'commute', startHour: 16, startMinute: 0, endHour: 17, endMinute: 0, availabilityLevel: 'low' },
+      { id: 'ns-work', type: 'work', startHour: 17, startMinute: 0, endHour: 24, endMinute: 0, label: 'Night work', availabilityLevel: 'high' },
+    ],
+  },
+  {
+    id: 'off_day',
+    name: 'Off Day',
+    type: 'off_day',
+    totalWorkHours: 0,
+    blocks: [
+      { id: 'od-sleep', type: 'sleep', startHour: 0, startMinute: 0, endHour: 9, endMinute: 0, availabilityLevel: 'blocked' },
+      { id: 'od-free', type: 'free', startHour: 9, startMinute: 0, endHour: 23, endMinute: 0, label: 'Free day', availabilityLevel: 'medium' },
+      { id: 'od-sleep2', type: 'sleep', startHour: 23, startMinute: 0, endHour: 24, endMinute: 0, availabilityLevel: 'blocked' },
+    ],
+  },
+]
 
 const SEED_ITEMS: TaskItem[] = [
   {
@@ -172,6 +221,25 @@ interface StoreState {
   setLocale: (locale: Locale) => void
   theme: 'dark' | 'light'
   setTheme: (theme: 'dark' | 'light') => void
+  
+  // Planner state
+  selectedDate: string // ISO date (YYYY-MM-DD)
+  calendarView: CalendarView
+  shiftTemplates: ShiftTemplate[]
+  dayShiftAssignments: Record<string, string> // date -> shiftTemplateId
+  dayOverrides: DayOverride[]
+  
+  // Planner methods
+  setSelectedDate: (date: string) => void
+  setCalendarView: (view: CalendarView) => void
+  updateShiftTemplate: (template: ShiftTemplate) => void
+  assignShiftToDay: (date: string, shiftTemplateId: string) => void
+  addDayOverride: (override: Omit<DayOverride, 'id'>) => void
+  removeDayOverride: (id: string) => void
+  scheduleTask: (taskId: string, block: Omit<ScheduledBlock, 'id' | 'taskId'>) => void
+  removeScheduledBlock: (taskId: string, blockId: string) => void
+  logWork: (taskId: string, log: Omit<WorkLog, 'id' | 'taskId'>) => void
+  getShiftForDate: (date: string) => ShiftTemplate
 }
 
 export const useStore = create<StoreState>()(
@@ -183,6 +251,113 @@ export const useStore = create<StoreState>()(
       setLocale: (locale) => set({ locale }),
       theme: 'dark' as 'dark' | 'light',
       setTheme: (theme) => set({ theme }),
+      
+      // Planner initial state
+      selectedDate: new Date().toISOString().split('T')[0],
+      calendarView: 'day' as CalendarView,
+      shiftTemplates: DEFAULT_SHIFT_TEMPLATES,
+      dayShiftAssignments: {},
+      dayOverrides: [],
+      
+      // Planner methods
+      setSelectedDate: (date) => set({ selectedDate: date }),
+      setCalendarView: (view) => set({ calendarView: view }),
+      
+      updateShiftTemplate: (template) =>
+        set((state) => ({
+          shiftTemplates: state.shiftTemplates.map((t) =>
+            t.id === template.id ? template : t
+          ),
+        })),
+      
+      assignShiftToDay: (date, shiftTemplateId) =>
+        set((state) => ({
+          dayShiftAssignments: { ...state.dayShiftAssignments, [date]: shiftTemplateId },
+        })),
+      
+      addDayOverride: (override) =>
+        set((state) => ({
+          dayOverrides: [
+            ...state.dayOverrides,
+            { ...override, id: crypto.randomUUID() },
+          ],
+        })),
+      
+      removeDayOverride: (id) =>
+        set((state) => ({
+          dayOverrides: state.dayOverrides.filter((o) => o.id !== id),
+        })),
+      
+      scheduleTask: (taskId, block) =>
+        set((state) => ({
+          items: state.items.map((item) => {
+            if (item.id !== taskId) return item
+            const newBlock: ScheduledBlock = {
+              ...block,
+              id: crypto.randomUUID(),
+              taskId,
+            }
+            const scheduledBlocks = [...(item.scheduledBlocks || []), newBlock]
+            const totalPlanned = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes / 60, 0)
+            return {
+              ...item,
+              scheduledBlocks,
+              remainingHours: (item.estimatedHours || 0) - totalPlanned - (item.actualHours || 0),
+              updatedAt: new Date().toISOString(),
+            }
+          }),
+        })),
+      
+      removeScheduledBlock: (taskId, blockId) =>
+        set((state) => ({
+          items: state.items.map((item) => {
+            if (item.id !== taskId) return item
+            const scheduledBlocks = (item.scheduledBlocks || []).filter((b) => b.id !== blockId)
+            const totalPlanned = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes / 60, 0)
+            return {
+              ...item,
+              scheduledBlocks,
+              remainingHours: (item.estimatedHours || 0) - totalPlanned - (item.actualHours || 0),
+              updatedAt: new Date().toISOString(),
+            }
+          }),
+        })),
+      
+      logWork: (taskId, log) =>
+        set((state) => ({
+          items: state.items.map((item) => {
+            if (item.id !== taskId) return item
+            const newLog: WorkLog = {
+              ...log,
+              id: crypto.randomUUID(),
+              taskId,
+            }
+            const workLogs = [...(item.workLogs || []), newLog]
+            const totalActual = workLogs.reduce((sum, l) => sum + l.durationMinutes / 60, 0)
+            const totalPlanned = (item.scheduledBlocks || []).reduce((sum, b) => sum + b.durationMinutes / 60, 0)
+            return {
+              ...item,
+              workLogs,
+              actualHours: totalActual,
+              remainingHours: (item.estimatedHours || 0) - totalPlanned - totalActual,
+              updatedAt: new Date().toISOString(),
+            }
+          }),
+        })),
+      
+      getShiftForDate: (date) => {
+        const state = useStore.getState()
+        const assignedShiftId = state.dayShiftAssignments[date]
+        if (assignedShiftId) {
+          const shift = state.shiftTemplates.find((t) => t.id === assignedShiftId)
+          if (shift) return shift
+        }
+        // Default: weekdays = day_shift, weekends = off_day
+        const dayOfWeek = new Date(date).getDay()
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+        const defaultShiftId = isWeekend ? 'off_day' : 'day_shift'
+        return state.shiftTemplates.find((t) => t.id === defaultShiftId) || state.shiftTemplates[0]
+      },
       addItem: (itemData) =>
         set((state) => {
           const score = calcScore(itemData.personalValue, itemData.systemImpact, itemData.effort)
