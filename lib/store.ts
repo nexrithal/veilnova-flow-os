@@ -347,12 +347,62 @@ export const useStore = create<StoreState>()(
             }
             const workLogs = [...(item.workLogs || []), newLog]
             const totalActual = workLogs.reduce((sum, l) => sum + l.durationMinutes / 60, 0)
-            const totalPlanned = (item.scheduledBlocks || []).reduce((sum, b) => sum + b.durationMinutes / 60, 0)
+            
+            // Tail reduction: shrink/remove future scheduled blocks when work is logged
+            // Calculate how much total time we have vs need
+            const estimatedHours = item.estimatedHours || 0
+            const usedHours = totalActual
+            const neededHours = Math.max(0, estimatedHours - usedHours)
+            
+            // Get current date for comparison
+            const today = formatDateLocal(new Date())
+            
+            // Sort blocks by date descending (future first), then by time descending
+            let scheduledBlocks = [...(item.scheduledBlocks || [])].sort((a, b) => {
+              if (a.date !== b.date) return b.date.localeCompare(a.date) // future dates first
+              return (b.startHour * 60 + b.startMinute) - (a.startHour * 60 + a.startMinute) // later times first
+            })
+            
+            // Calculate total planned hours and reduce from tail if needed
+            let totalPlannedMinutes = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes, 0)
+            const neededMinutes = neededHours * 60
+            
+            // If we have more planned than needed, reduce from the tail (future blocks)
+            if (totalPlannedMinutes > neededMinutes) {
+              const excessMinutes = totalPlannedMinutes - neededMinutes
+              let removedMinutes = 0
+              
+              scheduledBlocks = scheduledBlocks.filter((block) => {
+                // Never modify past blocks
+                if (block.date < today) return true
+                
+                // If we've already removed enough, keep this block
+                if (removedMinutes >= excessMinutes) return true
+                
+                // Check if we should remove or shrink this block
+                const blockMinutes = block.durationMinutes
+                if (removedMinutes + blockMinutes <= excessMinutes) {
+                  // Remove entire block
+                  removedMinutes += blockMinutes
+                  return false
+                } else {
+                  // Shrink this block (keep some of it)
+                  const toRemove = excessMinutes - removedMinutes
+                  block.durationMinutes = blockMinutes - toRemove
+                  removedMinutes = excessMinutes
+                  return true
+                }
+              })
+            }
+            
+            const totalPlanned = scheduledBlocks.reduce((sum, b) => sum + b.durationMinutes / 60, 0)
+            
             return {
               ...item,
               workLogs,
+              scheduledBlocks,
               actualHours: totalActual,
-              remainingHours: (item.estimatedHours || 0) - totalPlanned - totalActual,
+              remainingHours: estimatedHours - totalPlanned - totalActual,
               updatedAt: new Date().toISOString(),
             }
           }),

@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useStore } from '@/lib/store'
 import { useI18n } from '@/hooks/use-i18n'
+import { AppShell } from '@/components/app/app-shell'
 import { WeekGrid } from '@/components/planner/calendar-grid'
 import { CapacitySummary } from '@/components/planner/capacity-summary'
 import { PlannerHeader } from '@/components/planner/planner-header'
@@ -90,9 +91,10 @@ export default function WeekViewPage() {
   })}`
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Unified header with view switcher */}
-      <PlannerHeader
+    <AppShell>
+      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+        {/* Unified header with view switcher */}
+        <PlannerHeader
         title={weekTitle}
         isCurrentPeriod={isCurrentWeek}
         onPrev={goToPrev}
@@ -172,7 +174,8 @@ export default function WeekViewPage() {
             </p>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </AppShell>
   )
 }

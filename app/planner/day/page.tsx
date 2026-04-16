@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import { useI18n } from '@/hooks/use-i18n'
+import { AppShell } from '@/components/app/app-shell'
 import { TaskItem } from '@/lib/types'
 import { TimeTimeline } from '@/components/planner/time-timeline'
 import { ShiftSelector } from '@/components/planner/shift-selector'
@@ -97,9 +98,10 @@ export default function DayViewPage() {
   const dateSubtitle = displayDate.toLocaleDateString(localeStr, { weekday: 'long' })
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Unified header with view switcher */}
-      <PlannerHeader
+    <AppShell>
+      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+        {/* Unified header with view switcher */}
+        <PlannerHeader
         title={dateTitle}
         subtitle={dateSubtitle}
         isCurrentPeriod={isToday}
@@ -302,17 +304,18 @@ export default function DayViewPage() {
 
       {/* Schedule modal */}
       <ScheduleModal
-        isOpen={scheduleModalOpen}
-        onClose={() => {
-          setScheduleModalOpen(false)
-          setSelectedTask(null)
-        }}
-        task={selectedTask}
-        date={selectedDate}
-        initialHour={scheduleTime.hour}
-        initialMinute={scheduleTime.minute}
-        existingBlocks={scheduledBlocks}
-      />
-    </div>
+          isOpen={scheduleModalOpen}
+          onClose={() => {
+            setScheduleModalOpen(false)
+            setSelectedTask(null)
+          }}
+          task={selectedTask}
+          date={selectedDate}
+          initialHour={scheduleTime.hour}
+          initialMinute={scheduleTime.minute}
+          existingBlocks={scheduledBlocks}
+        />
+        </div>
+    </AppShell>
   )
 }
