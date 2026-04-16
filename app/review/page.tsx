@@ -63,7 +63,7 @@ export default function ReviewPage() {
 
   return (
     <AppShell>
-      <div className="px-6 py-6 max-w-3xl mx-auto">
+      <div className="px-4 md:px-6 py-6 max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

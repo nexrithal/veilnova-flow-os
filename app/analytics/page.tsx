@@ -128,7 +128,7 @@ export default function AnalyticsPage() {
 
   return (
     <AppShell>
-      <div className="px-6 py-6 max-w-4xl mx-auto">
+      <div className="px-4 md:px-6 py-6 max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-foreground tracking-tight">{t.analytics.title}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{t.analytics.subtitle}</p>

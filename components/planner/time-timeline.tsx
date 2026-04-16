@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { 
   ShiftTemplate, TimeBlock, ScheduledBlock, WorkLog, TaskItem 
@@ -54,13 +55,13 @@ export function TimeTimeline({
   }
 
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('relative w-full min-w-0', className)}>
       {/* Time labels column */}
-      <div className="absolute left-0 top-0 w-12 z-10">
+      <div className="absolute left-0 top-0 w-10 sm:w-12 z-10">
         {HOURS.map((hour) => (
           <div
             key={hour}
-            className="h-12 flex items-start justify-end pr-2 text-[10px] text-muted-foreground tabular-nums"
+            className="h-12 flex items-start justify-end pr-1.5 sm:pr-2 text-[9px] sm:text-[10px] text-muted-foreground tabular-nums"
           >
             {formatTime(hour, 0)}
           </div>
@@ -69,7 +70,7 @@ export function TimeTimeline({
 
       {/* Timeline content */}
       <div 
-        className="ml-12 relative border-l border-border"
+        className="ml-10 sm:ml-12 relative border-l border-border min-w-0"
         style={{ height: `${24 * HOUR_HEIGHT}px` }}
         onClick={handleTimeClick}
       >
@@ -159,8 +160,22 @@ export function TimeTimeline({
 }
 
 function CurrentTimeIndicator() {
-  const now = new Date()
-  const top = (now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT
+  const [top, setTop] = useState<number | null>(null)
+
+  useEffect(() => {
+    const updatePosition = () => {
+      const now = new Date()
+      setTop((now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT)
+    }
+    
+    updatePosition()
+    // Update every minute
+    const interval = setInterval(updatePosition, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Don't render on server or before hydration
+  if (top === null) return null
 
   return (
     <div

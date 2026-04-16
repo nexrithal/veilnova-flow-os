@@ -97,133 +97,133 @@ export default function MonthViewPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen w-full min-w-0 overflow-hidden">
         {/* Unified header with view switcher */}
         <PlannerHeader
-        title={monthTitle}
-        isCurrentPeriod={isCurrentMonth}
-        onPrev={goToPrev}
-        onNext={goToNext}
-        onToday={goToToday}
-        todayLabel={t.planner?.thisMonth || 'This Month'}
-      >
-        <CapacitySummary
-          available={monthlyStats.totalAvailable}
-          planned={monthlyStats.totalPlanned}
-          actual={monthlyStats.totalActual}
-          compact
-        />
-      </PlannerHeader>
-
-      {/* Month content */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="max-w-2xl mx-auto">
-          <CalendarGrid
-            year={year}
-            month={month}
-            selectedDate={selectedDate}
-            tasks={items}
-            getShiftForDate={getShiftForDate}
-            onDateSelect={handleDateSelect}
+          title={monthTitle}
+          isCurrentPeriod={isCurrentMonth}
+          onPrev={goToPrev}
+          onNext={goToNext}
+          onToday={goToToday}
+          todayLabel={t.planner?.thisMonth || 'This Month'}
+        >
+          <CapacitySummary
+            available={monthlyStats.totalAvailable}
+            planned={monthlyStats.totalPlanned}
+            actual={monthlyStats.totalActual}
+            compact
           />
+        </PlannerHeader>
 
-          {/* Deadlines section */}
-          {deadlines.length > 0 && (
-            <div className="mt-6 space-y-3">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {t.planner?.deadlinesThisMonth || 'Deadlines this month'} ({deadlines.length})
-              </h3>
-              <div className="space-y-2">
-                {deadlines
-                  .sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''))
-                  .map((task) => {
-                    const deadlineDate = parseDate(task.deadline!)
-                    const isPast = task.deadline! < today
-                    return (
-                      <div
-                        key={task.id}
-                        className={cn(
-                          'p-3 rounded border cursor-pointer transition-colors',
-                          isPast
-                            ? 'bg-destructive/10 border-destructive/30 hover:bg-destructive/15'
-                            : 'bg-card border-border hover:border-neon/30'
-                        )}
-                        onClick={() => handleDateSelect(task.deadline!)}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className={cn('text-xs font-medium', isPast && 'text-destructive')}>
-                              {task.title}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {task.description?.slice(0, 60)}
-                              {task.description && task.description.length > 60 ? '...' : ''}
-                            </p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className={cn(
-                              'text-[10px] font-medium',
-                              isPast ? 'text-destructive' : 'text-muted-foreground'
-                            )}>
-                              {deadlineDate.toLocaleDateString(localeStr, {
-                                weekday: 'short',
-                                day: 'numeric',
-                              })}
-                            </p>
-                            {task.estimatedHours && (
-                              <p className="text-[9px] text-muted-foreground">
-                                {task.estimatedHours}h est.
+        {/* Month content */}
+        <div className="flex-1 min-h-0 min-w-0 overflow-auto p-4">
+          <div className="w-full md:max-w-2xl md:mx-auto">
+            <CalendarGrid
+              year={year}
+              month={month}
+              selectedDate={selectedDate}
+              tasks={items}
+              getShiftForDate={getShiftForDate}
+              onDateSelect={handleDateSelect}
+            />
+
+            {/* Deadlines section */}
+            {deadlines.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {t.planner?.deadlinesThisMonth || 'Deadlines this month'} ({deadlines.length})
+                </h3>
+                <div className="space-y-2">
+                  {deadlines
+                    .sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''))
+                    .map((task) => {
+                      const deadlineDate = parseDate(task.deadline!)
+                      const isPast = task.deadline! < today
+                      return (
+                        <div
+                          key={task.id}
+                          className={cn(
+                            'p-3 rounded border cursor-pointer transition-colors',
+                            isPast
+                              ? 'bg-destructive/10 border-destructive/30 hover:bg-destructive/15'
+                              : 'bg-card border-border hover:border-neon/30'
+                          )}
+                          onClick={() => handleDateSelect(task.deadline!)}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className={cn('text-xs font-medium', isPast && 'text-destructive')}>
+                                {task.title}
                               </p>
-                            )}
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {task.description?.slice(0, 60)}
+                                {task.description && task.description.length > 60 ? '...' : ''}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className={cn(
+                                'text-[10px] font-medium',
+                                isPast ? 'text-destructive' : 'text-muted-foreground'
+                              )}>
+                                {deadlineDate.toLocaleDateString(localeStr, {
+                                  weekday: 'short',
+                                  day: 'numeric',
+                                })}
+                              </p>
+                              {task.estimatedHours && (
+                                <p className="text-[9px] text-muted-foreground">
+                                  {task.estimatedHours}h est.
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Monthly summary section */}
-          <div className="mt-6 p-4 rounded-lg bg-card border border-border">
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-              {t.planner?.monthlySummary || 'Monthly Summary'}
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-lg font-bold text-foreground tabular-nums">
-                  {monthlyStats.totalAvailable.toFixed(0)}h
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {t.planner?.available || 'Available'}
-                </p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-neon tabular-nums">
-                  {monthlyStats.totalPlanned.toFixed(0)}h
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {t.planner?.plannedLabel || 'Planned'}
-                </p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-chart-2 tabular-nums">
-                  {monthlyStats.totalActual.toFixed(0)}h
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {t.planner?.actual || 'Actual'}
-                </p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-foreground tabular-nums">
-                  {deadlines.length}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {t.planner?.deadlines || 'Deadlines'}
-                </p>
+            {/* Monthly summary section */}
+            <div className="mt-6 p-4 rounded-lg bg-card border border-border">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                {t.planner?.monthlySummary || 'Monthly Summary'}
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                <div>
+                  <p className="text-lg font-bold text-foreground tabular-nums">
+                    {monthlyStats.totalAvailable.toFixed(0)}h
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t.planner?.available || 'Available'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-neon tabular-nums">
+                    {monthlyStats.totalPlanned.toFixed(0)}h
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t.planner?.plannedLabel || 'Planned'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-chart-2 tabular-nums">
+                    {monthlyStats.totalActual.toFixed(0)}h
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t.planner?.actual || 'Actual'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-foreground tabular-nums">
+                    {deadlines.length}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t.planner?.deadlines || 'Deadlines'}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
       </div>
